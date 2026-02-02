@@ -4,6 +4,8 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - film-network
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
@@ -12,6 +14,8 @@ services:
       - xpack.security.enabled=false
     ports:
       - "9200:9200"
+    networks:
+      - film-network
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
@@ -26,26 +30,36 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - film-network
 
   email-service:
     build: ./email-service
     depends_on:
       - kafka
       - elasticsearch
-    env_file: .env
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+    networks:
+      - film-network
 
   film-service:
     build: ./film-service
+    container_name: film-service
     ports:
       - "8082:8082"
-    depends_on:
-      - kafka
     environment:
-      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-
+      - SERVER_PORT=8082
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/films_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+    depends_on:
+      - postgres
+      - elasticsearch
+    networks:
+      - film-network
 
   kibana:
     image: docker.elastic.co/kibana/kibana:7.17.10
@@ -55,3 +69,46 @@ services:
       - elasticsearch
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    networks:
+      - film-network
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: films_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - film-network
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8081:8081"
+    depends_on:
+      - email-service
+      - film-service
+    environment:
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_ID=email-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_URI=http://email-service:8080
+      - SPRING_CLOUD_GATEWAY_ROUTES_0_PREDICATES_0=Path=/api/emails/**
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_ID=film-service
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_URI=http://film-service:8082
+      - SPRING_CLOUD_GATEWAY_ROUTES_1_PREDICATES_0=Path=/api/films/**
+    networks:
+      - film-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - film-network
+
+networks:
+  film-network:
+    driver: bridge

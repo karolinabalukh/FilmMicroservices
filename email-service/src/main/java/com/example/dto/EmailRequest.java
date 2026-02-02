@@ -1,14 +1,18 @@
 package com.example.dto;
 
-import lombok.Data;
-
-@Data
 public class EmailRequest {
     private String email;
     private String subject;
     private String content;
 
+    public EmailRequest() {
+    }
 
+    public EmailRequest(String email, String subject, String content) {
+        this.email = email;
+        this.subject = subject;
+        this.content = content;
+    }
 
     public String getEmail() {
         return email;

@@ -30,7 +30,6 @@ public class FilmController {
     }
 
     @PutMapping("/{id}")
-    // ВИПРАВЛЕНО: Прибрана зайва дужка
     public ResponseEntity<Film> update(@PathVariable Long id, @RequestBody @Valid FilmCreateDto dto) {
         return ResponseEntity.ok(filmService.update(id, dto));
     }

@@ -1,8 +1,12 @@
 package com.example.repository;
-import com.example.model.EmailStatus;
+
+import com.example.model.EmailDocument;
+import com.example.model.EmailStatusEnum;
 import org.springframework.data.elasticsearch.repository.ElasticsearchRepository;
 import java.util.List;
-public interface EmailRepository extends ElasticsearchRepository<EmailStatus, String> {
-    List<EmailStatus> findByStatus(String status);
-    List<EmailStatus> findByRecipient(String recipient);
+
+public interface EmailRepository
+        extends ElasticsearchRepository<EmailDocument, String> {
+
+    List<EmailDocument> findByStatus(EmailStatusEnum status);
 }

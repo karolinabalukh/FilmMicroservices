@@ -1,44 +1,47 @@
 package com.example.service;
 
-import com.example.model.EmailStatus;
+import com.example.model.EmailDocument;
+import com.example.model.EmailStatusEnum;
 import com.example.repository.EmailRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
     private final JavaMailSender mailSender;
     private final EmailRepository emailRepository;
 
-    public EmailService(JavaMailSender mailSender, EmailRepository emailRepository) {
-        this.mailSender = mailSender;
-        this.emailRepository = emailRepository;
-    }
-
-    public void sendEmail(EmailStatus emailStatus) {
+    public void sendEmail(EmailDocument email) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setTo(emailStatus.getRecipient());
-            message.setSubject(emailStatus.getSubject());
-            message.setText(emailStatus.getContent());
+            message.setTo(email.getRecipient());
+            message.setSubject(email.getSubject());
+            message.setText(email.getContent());
+
             mailSender.send(message);
-            emailStatus.setStatus("SENT");
-            emailStatus.setErrorMessage(null);
-            System.out.println("ЛИСТ УСПІШНО ВІДПРАВЛЕНО НА: " + emailStatus.getRecipient());
+
+            email.setStatus(EmailStatusEnum.SENT);
+            email.setErrorMessage(null);
+            log.info("Email successfully sent to: {}", email.getRecipient());
+
         } catch (Exception e) {
-            emailStatus.setStatus("ERROR");
-            emailStatus.setErrorMessage(e.getMessage());
-            emailStatus.setAttemptsCount(emailStatus.getAttemptsCount() + 1);
-            System.err.println("ПОМИЛКА ВІДПРАВКИ SMTP: " + e.getMessage());
+            String fullErrorMessage = e.getClass().getName() + ": " + e.getMessage();
+            email.setStatus(EmailStatusEnum.FAILED);
+            email.setErrorMessage(fullErrorMessage);
+            email.setAttemptsCount(email.getAttemptsCount() + 1);
+
+            log.error("SMTP sending error: {}", fullErrorMessage);
         } finally {
-            emailStatus.setLastAttemptTime(Instant.now());
-            emailRepository.save(emailStatus);
-            System.out.println("СТАТУС ОНОВЛЕНО В ELASTICSEARCH");
+            email.setLastAttemptTime(Instant.now());
+            emailRepository.save(email);
         }
     }
 }

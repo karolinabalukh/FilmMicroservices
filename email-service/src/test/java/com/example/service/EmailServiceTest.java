@@ -1,6 +1,7 @@
 package com.example.service;
 
-import com.example.model.EmailStatus;
+import com.example.model.EmailDocument;
+import com.example.model.EmailStatusEnum;
 import com.example.repository.EmailRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,33 +30,32 @@ public class EmailServiceTest {
 
     @Test
     void testEmailStatusTransitions() {
-        EmailStatus email = new EmailStatus();
+        EmailDocument email = new EmailDocument();
         email.setRecipient("test@example.com");
         email.setSubject("Test Subject");
         email.setContent("Test Content");
-        email.setStatus("PENDING");
+        email.setStatus(EmailStatusEnum.PENDING);
 
         email = repository.save(email);
         String emailId = email.getId();
-        doNothing().when(mailSender).send(any(SimpleMailMessage.class));
 
+        doNothing().when(mailSender).send(any(SimpleMailMessage.class));
         emailService.sendEmail(email);
 
-        Optional<EmailStatus> sentEmailOpt = repository.findById(emailId);
-        assertTrue(sentEmailOpt.isPresent());
-        assertEquals("відправлений", sentEmailOpt.get().getStatus());
+        EmailDocument sentEmail = repository.findById(emailId).orElseThrow();
+        assertEquals(EmailStatusEnum.SENT, sentEmail.getStatus());
+        assertNull(sentEmail.getErrorMessage());
 
+        // 2. Помилка відправки
         doThrow(new RuntimeException("SMTP Server Unavailable"))
                 .when(mailSender).send(any(SimpleMailMessage.class));
 
-        emailService.sendEmail(sentEmailOpt.get());
-        Optional<EmailStatus> failedEmailOpt = repository.findById(emailId);
-        assertTrue(failedEmailOpt.isPresent());
-        EmailStatus failedEmail = failedEmailOpt.get();
+        emailService.sendEmail(sentEmail);
 
-        assertEquals("помилковий", failedEmail.getStatus());
+        EmailDocument failedEmail = repository.findById(emailId).orElseThrow();
+        assertEquals(EmailStatusEnum.FAILED, failedEmail.getStatus());
         assertNotNull(failedEmail.getErrorMessage());
-        assertTrue(failedEmail.getErrorMessage().contains("SMTP Server Unavailable"));
+        assertTrue(failedEmail.getErrorMessage().contains("java.lang.RuntimeException"));
         assertTrue(failedEmail.getAttemptsCount() > 0);
     }
 }

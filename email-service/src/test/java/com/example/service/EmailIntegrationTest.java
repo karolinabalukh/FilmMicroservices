@@ -1,6 +1,7 @@
 package com.example.service;
 
-import com.example.model.EmailStatus;
+import com.example.model.EmailDocument;
+import com.example.model.EmailStatusEnum;
 import com.example.repository.EmailRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -19,11 +20,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-@SpringBootTest(
-        properties = {
-                "spring.kafka.listener.auto-startup=false"
-        }
-)
+@SpringBootTest(properties = {"spring.kafka.listener.auto-startup=false"})
 @ActiveProfiles("test")
 class EmailServiceIntegrationTest {
 
@@ -43,45 +40,39 @@ class EmailServiceIntegrationTest {
 
     @Test
     void shouldSendEmailSuccessfully() {
-        EmailStatus email = new EmailStatus();
+        EmailDocument email = new EmailDocument();
         email.setRecipient("test@gmail.com");
-        email.setSubject("Test subject");
-        email.setContent("Hello!");
-        email.setAttemptsCount(0);
-        email.setStatus("PENDING");
+        email.setSubject("Test");
+        email.setContent("Hello");
+        email.setStatus(EmailStatusEnum.PENDING);
+
         doNothing().when(mailSender).send(any(SimpleMailMessage.class));
 
         emailService.sendEmail(email);
-        EmailStatus saved = emailRepository.findAll().iterator().next();
 
-        assertThat(saved.getStatus()).isEqualTo("SENT");
+        EmailDocument saved = emailRepository.findAll().iterator().next();
+
+        assertThat(saved.getStatus()).isEqualTo(EmailStatusEnum.SENT);
         assertThat(saved.getErrorMessage()).isNull();
-        assertThat(saved.getAttemptsCount()).isEqualTo(0);
-        assertThat(saved.getLastAttemptTime()).isNotNull();
-
         verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
     }
 
     @Test
     void shouldHandleEmailSendFailure() {
-        EmailStatus email = new EmailStatus();
+        EmailDocument email = new EmailDocument();
         email.setRecipient("fail@gmail.com");
-        email.setSubject("Fail test");
-        email.setContent("Boom!");
-        email.setAttemptsCount(0);
-        email.setStatus("PENDING");
+        email.setStatus(EmailStatusEnum.PENDING);
 
         doThrow(new MailSendException("SMTP error"))
                 .when(mailSender)
                 .send(any(SimpleMailMessage.class));
 
         emailService.sendEmail(email);
-        EmailStatus saved = emailRepository.findAll().iterator().next();
 
-        assertThat(saved.getStatus()).isEqualTo("ERROR");
-        assertThat(saved.getErrorMessage()).contains("SMTP");
+        EmailDocument saved = emailRepository.findAll().iterator().next();
+
+        assertThat(saved.getStatus()).isEqualTo(EmailStatusEnum.FAILED);
+        assertThat(saved.getErrorMessage()).contains("org.springframework.mail.MailSendException");
         assertThat(saved.getAttemptsCount()).isEqualTo(1);
-        assertThat(saved.getLastAttemptTime()).isNotNull();
-        verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
     }
 }

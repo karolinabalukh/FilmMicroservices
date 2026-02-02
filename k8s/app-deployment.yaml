@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: film-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: film-service
+  template:
+    metadata:
+      labels:
+        app: film-service
+    spec:
+      containers:
+        - name: film-service
+          image: gcr.io/[ТВІЙ_GCP_PROJECT_ID]/film-service:latest
+          ports:
+            - containerPort: 8082
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-service:5432/films_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: film-service
+spec:
+  selector:
+    app: film-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+  type: ClusterIP

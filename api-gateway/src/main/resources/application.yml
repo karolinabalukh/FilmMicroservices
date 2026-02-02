@@ -1,0 +1,29 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: email-service
+          uri: http://email-service:8080
+          predicates:
+            - Path=/api/emails/**
+        - id: film-service
+          uri: http://film-service:8082
+          predicates:
+            - Path=/api/films/**
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope: openid, profile, email
+            redirect-uri: "{baseUrl}/login/oauth2/code/google"
+        provider:
+          google:
+            issuer-uri: https://accounts.google.com
