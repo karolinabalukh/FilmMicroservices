@@ -39,14 +39,6 @@ MAIL_PASSWORD=your_app_password
 ```
 
 
-## Запуск всієї системи
-
-Підняти всі контейнери  
-(**Kafka, Elasticsearch, Kibana, Film Service, Email Service**):
-
-```bash
-docker-compose up -d 
-```
 
 ## Доступ до сервісів
 
@@ -56,3 +48,45 @@ docker-compose up -d
 | Kibana | http://localhost:5601 |
 | Elasticsearch | http://localhost:9200/emails/_search?pretty |
 
+
+
+## Запуск системи (Docker)
+
+Для запуску всіх сервісів виконати команду:
+
+```bash
+docker-compose up --build
+```
+
+
+##Безпека та Авторизація
+
+Проєкт використовує **OAuth2** через Google.
+
+1. При вході на Frontend користувач перенаправляється на сторінку входу Google.
+2. Після успішного входу Gateway створює сесію.
+3. Ендпоінт `/profile` повертає дані користувача (ім'я, email, фото).
+4. Доступ до API (створення/видалення фільмів) дозволено лише авторизованим користувачам.
+
+---
+
+##  CI/CD та Хмара
+
+### GitHub Actions
+У проєкті налаштовано автоматичний Pipeline (`.github/workflows/main.yml`).
+
+* При кожному `push` в гілку `master` відбувається збірка проєкту (Maven) та створення Docker-образів.
+
+### Kubernetes (GKE)
+У папці `k8s/` знаходяться маніфести для розгортання в Google Kubernetes Engine:
+
+* `deployment.yaml` — конфігурація сервісів.
+
+---
+
+
+
+Зупинити всі контейнери та видалити ресурси:
+
+```bash
+docker-compose down
